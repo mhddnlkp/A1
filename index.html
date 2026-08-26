@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>A1-ISMB JSONP Test</title>
+  <title>A1-ISMB Fetch Test</title>
   <style>
-    body { font-family: Arial,sans-serif; max-width:520px; margin:auto; padding:24px; }
+    body { font-family: Arial, sans-serif; max-width:520px; margin:auto; padding:24px; }
     button { width:100%; padding:16px; font-size:17px; font-weight:bold; cursor:pointer; }
     #result { margin-top:20px; padding:15px; border:1px solid #ddd; border-radius:8px;
               white-space:pre-wrap; overflow-wrap:anywhere; min-height:80px; }
@@ -13,44 +13,36 @@
 </head>
 <body>
 
-<h2>A1-ISMB JSONP Connection Test</h2>
-<button onclick="testJSONP()">TEST JSONP</button>
-<div id="result">Press TEST JSONP.</div>
+<h2>A1-ISMB FETCH Connection Test</h2>
+<button onclick="testBackend()">TEST FETCH</button>
+<div id="result">Press TEST FETCH.</div>
 
 <script>
 const backendUrl =
   "https://script.google.com/macros/s/AKfycbyagVLGrAMPyT9gZGptDhbM4WrzeW48WBTaM_SLe0e7o4d1QGUMW4XePuknS4DqbmFm/exec";
 
-function testJSONP() {
+async function testBackend() {
   const result = document.getElementById("result");
-  result.textContent = "Testing JSONP connection...";
+  result.textContent = "Connecting...";
 
-  const callbackName = "a1ismbTestCallback";
+  try {
+    // Same simple fetch pattern used by the original working scanner demo.
+    const response = await fetch(
+      backendUrl + "?action=retailActiveCarts"
+    );
 
-  window[callbackName] = function(data) {
+    const data = await response.json();
+
     result.textContent =
-      "JSONP WORKING ✅\n\n" +
+      "FETCH WORKING ✅\n\n" +
       JSON.stringify(data, null, 2);
 
-    delete window[callbackName];
-  };
-
-  const script = document.createElement("script");
-
-  script.src =
-    backendUrl +
-    "?action=retailActiveCarts" +
-    "&callback=" + callbackName +
-    "&_=" + Date.now();
-
-  script.onerror = function() {
+  } catch (error) {
     result.textContent =
-      "JSONP FAILED ❌\n\n" +
-      "The browser could not load the Apps Script response as a script.";
-    delete window[callbackName];
-  };
-
-  document.body.appendChild(script);
+      "FETCH FAILED ❌\n\n" +
+      "Name: " + error.name + "\n" +
+      "Message: " + error.message;
+  }
 }
 </script>
 

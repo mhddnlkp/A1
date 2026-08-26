@@ -1389,122 +1389,122 @@ async function stopScannerQuietly() {
    redirect/CORS problem.
    ========================================================= */
 
+let __ismbJsonpCounter = 0;
+
 function api(params) {
 
-  return new Promise(
-    function(resolve, reject) {
+  return new Promise(function(resolve, reject) {
 
-      const callbackName =
-        "__ismb_cb_" +
-        Date.now() +
-        "_" +
-        Math.floor(
-          Math.random() *
-          100000
-        );
+    __ismbJsonpCounter++;
 
-      const script =
-        document.createElement(
-          "script"
-        );
+    const callbackName =
+      "ismbCallback" +
+      Date.now() +
+      __ismbJsonpCounter;
 
-      const timeout =
-        setTimeout(
-          function() {
+    const script =
+      document.createElement("script");
 
-            cleanup();
+    const query =
+      new URLSearchParams();
 
-            reject(
-              new Error(
-                "Backend connection timed out."
-              )
-            );
+    Object.keys(params).forEach(function(key) {
+      query.set(
+        key,
+        String(params[key] == null ? "" : params[key])
+      );
+    });
 
-          },
-          15000
-        );
+    query.set(
+      "callback",
+      callbackName
+    );
 
-      function cleanup() {
+    query.set(
+      "_ts",
+      String(Date.now())
+    );
 
-        clearTimeout(
-          timeout
-        );
+    let finished = false;
 
-        try {
-          delete window[
-            callbackName
-          ];
-        } catch (_) {}
+    function cleanup() {
 
-        if (
-          script.parentNode
-        ) {
-
-          script.parentNode
-            .removeChild(
-              script
-            );
-
-        }
-
+      if (finished) {
+        return;
       }
 
-      window[
-        callbackName
-      ] =
-        function(data) {
+      finished = true;
 
-          cleanup();
+      clearTimeout(timeout);
 
-          resolve(
-            data
-          );
+      if (script.parentNode) {
+        script.parentNode.removeChild(script);
+      }
 
-        };
-
-      const query =
-        new URLSearchParams(
-          params
-        );
-
-      query.set(
-        "callback",
-        callbackName
-      );
-
-      query.set(
-        "_",
-        Date.now()
-      );
-
-      script.src =
-        backendUrl +
-        "?" +
-        query.toString();
-
-      script.onerror =
-        function() {
-
-          cleanup();
-
-          reject(
-            new Error(
-              "Could not connect to backend."
-            )
-          );
-
-        };
-
-      document.body
-        .appendChild(
-          script
-        );
-
+      setTimeout(function() {
+        try {
+          delete window[callbackName];
+        } catch (_) {
+          window[callbackName] = undefined;
+        }
+      }, 0);
     }
-  );
 
+    window[callbackName] =
+      function(data) {
+
+        if (finished) {
+          return;
+        }
+
+        resolve(data);
+
+        cleanup();
+      };
+
+    const timeout =
+      setTimeout(function() {
+
+        if (finished) {
+          return;
+        }
+
+        cleanup();
+
+        reject(
+          new Error(
+            "Backend connection timed out."
+          )
+        );
+
+      }, 20000);
+
+    script.async = true;
+
+    script.src =
+      backendUrl +
+      "?" +
+      query.toString();
+
+    script.onerror =
+      function() {
+
+        if (finished) {
+          return;
+        }
+
+        cleanup();
+
+        reject(
+          new Error(
+            "Could not connect to backend."
+          )
+        );
+      };
+
+    document.head.appendChild(script);
+  });
 }
-
 
 function esc(value) {
 

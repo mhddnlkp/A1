@@ -3,79 +3,54 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>A1-ISMB Backend Test</title>
+  <title>A1-ISMB JSONP Test</title>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      max-width: 520px;
-      margin: 0 auto;
-      padding: 24px;
-    }
-    button {
-      width: 100%;
-      padding: 16px;
-      font-size: 17px;
-      font-weight: bold;
-      cursor: pointer;
-    }
-    #result {
-      margin-top: 20px;
-      padding: 15px;
-      border: 1px solid #ddd;
-      border-radius: 8px;
-      white-space: pre-wrap;
-      overflow-wrap: anywhere;
-      min-height: 80px;
-    }
+    body { font-family: Arial,sans-serif; max-width:520px; margin:auto; padding:24px; }
+    button { width:100%; padding:16px; font-size:17px; font-weight:bold; cursor:pointer; }
+    #result { margin-top:20px; padding:15px; border:1px solid #ddd; border-radius:8px;
+              white-space:pre-wrap; overflow-wrap:anywhere; min-height:80px; }
   </style>
 </head>
 <body>
 
-<h2>A1-ISMB Backend Connection Test</h2>
-
-<button onclick="testBackend()">TEST BACKEND</button>
-
-<div id="result">Press TEST BACKEND.</div>
+<h2>A1-ISMB JSONP Connection Test</h2>
+<button onclick="testJSONP()">TEST JSONP</button>
+<div id="result">Press TEST JSONP.</div>
 
 <script>
 const backendUrl =
   "https://script.google.com/macros/s/AKfycbyagVLGrAMPyT9gZGptDhbM4WrzeW48WBTaM_SLe0e7o4d1QGUMW4XePuknS4DqbmFm/exec";
 
-async function testBackend() {
+function testJSONP() {
   const result = document.getElementById("result");
-  result.textContent = "Testing connection...";
+  result.textContent = "Testing JSONP connection...";
 
-  const testUrl =
+  const callbackName = "a1ismbTestCallback";
+
+  window[callbackName] = function(data) {
+    result.textContent =
+      "JSONP WORKING ✅\n\n" +
+      JSON.stringify(data, null, 2);
+
+    delete window[callbackName];
+  };
+
+  const script = document.createElement("script");
+
+  script.src =
     backendUrl +
-    "?action=retailActiveCarts&_=" +
-    Date.now();
+    "?action=retailActiveCarts" +
+    "&callback=" + callbackName +
+    "&_=" + Date.now();
 
-  result.textContent =
-    "Requesting:\n" + testUrl + "\n\nWaiting...";
-
-  try {
-    const response = await fetch(testUrl, {
-      method: "GET",
-      redirect: "follow",
-      cache: "no-store"
-    });
-
-    const text = await response.text();
-
+  script.onerror = function() {
     result.textContent =
-      "FETCH COMPLETED\n\n" +
-      "HTTP status: " + response.status + "\n" +
-      "Response type: " + response.type + "\n" +
-      "Final URL: " + response.url + "\n\n" +
-      "RESPONSE:\n" + text;
+      "JSONP FAILED ❌\n\n" +
+      "The browser could not load the Apps Script response as a script.";
+    delete window[callbackName];
+  };
 
-  } catch (error) {
-    result.textContent =
-      "FETCH FAILED\n\n" +
-      "Error name: " + error.name + "\n" +
-      "Error message: " + error.message + "\n\n" +
-      "This result tells us the browser blocked the request before the cart code ran.";
-  }
+  document.body.appendChild(script);
 }
 </script>
 

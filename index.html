@@ -1665,27 +1665,16 @@ async function addProductToCart(
   scannedProduct =
     null;
 
-  if (
-    scannerMode ===
-    "CART"
-  ) {
+  // Show the product in the cart immediately.
+  // Google Sheets saves in the background.
+  showOptimisticCartAdd(
+    productToAdd
+  );
 
-    showOptimisticCartAdd(
-      productToAdd
-    );
-
-  } else {
-
-    showOnly(
-      "scannerScreen"
-    );
-
-    message(
-      addedName +
-      " is being added..."
-    );
-
-  }
+  message(
+    addedName +
+    " added. Saving..."
+  );
 
   try {
 
@@ -1712,45 +1701,31 @@ async function addProductToCart(
 
     }
 
-    activeCartsCache = null;
+    activeCartsCache =
+      null;
+
+    // Reconcile with confirmed backend values.
+    renderCartItems(
+      data
+    );
 
     message(
       addedName +
       " added to cart."
     );
 
-    if (
-      scannerMode ===
-      "CART"
-    ) {
-
-      renderCartItems(
-        data
-      );
-
-    } else {
-
-      openPriceScanner();
-
-    }
-
   } catch (error) {
 
     message(
+      "Save failed: " +
       error.message,
       true
     );
 
-    if (
-      scannerMode ===
-      "CART"
-    ) {
-
-      await openCart(
-        cartId
-      );
-
-    }
+    // Restore the authoritative cart if save fails.
+    await openCart(
+      cartId
+    );
 
   }
 

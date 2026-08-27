@@ -336,6 +336,12 @@
   </div>
 
   <button
+    class="green"
+    onclick="createCartForScannedProduct()">
+    CREATE NEW CART
+  </button>
+
+  <button
     class="light"
     onclick="cancelCartSelection()">
     CANCEL
@@ -392,6 +398,7 @@ let scannerMode = "PRICE";
 let currentCartId = "";
 let scannedProduct = null;
 let returnScreen = "homeScreen";
+let createCartFromScannedProduct = false;
 
 
 function showOnly(id) {
@@ -511,9 +518,7 @@ function loginStaff() {
 
   message("");
 
-  showOnly(
-    "homeScreen"
-  );
+  openPriceScanner();
 
 }
 
@@ -538,6 +543,9 @@ async function goHome() {
 
 
 function showCreateCart() {
+
+  createCartFromScannedProduct =
+    false;
 
   showOnly(
     "createCartScreen"
@@ -618,6 +626,25 @@ async function createCart() {
 
     currentCartId =
       data.cartId;
+
+    if (
+      createCartFromScannedProduct &&
+      scannedProduct
+    ) {
+
+      createCartFromScannedProduct =
+        false;
+
+      scannerMode =
+        "CART";
+
+      await addProductToCart(
+        currentCartId
+      );
+
+      return;
+
+    }
 
     await openCart(
       currentCartId
@@ -1021,6 +1048,13 @@ function openPriceScanner() {
     "scannerScreen"
   );
 
+  setTimeout(
+    function() {
+      startScanner();
+    },
+    120
+  );
+
 }
 
 
@@ -1059,6 +1093,13 @@ function openInsideCartScanner() {
 
   showOnly(
     "scannerScreen"
+  );
+
+  setTimeout(
+    function() {
+      startScanner();
+    },
+    120
   );
 
 }
@@ -1331,11 +1372,31 @@ async function productAddDecision() {
 
     }
 
-    renderActiveCarts(
-      data.carts || [],
-      "cartChoices",
-      addProductToCart
-    );
+    const carts =
+      data.carts || [];
+
+    const box =
+      document.getElementById(
+        "cartChoices"
+      );
+
+    box.innerHTML =
+      "";
+
+    if (!carts.length) {
+
+      box.innerHTML =
+        "<p>No active carts. Create a new cart for this customer.</p>";
+
+    } else {
+
+      renderActiveCarts(
+        carts,
+        "cartChoices",
+        addProductToCart
+      );
+
+    }
 
   } catch (error) {
 
@@ -1347,6 +1408,34 @@ async function productAddDecision() {
         error.message;
 
   }
+
+}
+
+
+function createCartForScannedProduct() {
+
+  if (!scannedProduct) {
+
+    message(
+      "No scanned product is waiting.",
+      true
+    );
+
+    return;
+  }
+
+  createCartFromScannedProduct =
+    true;
+
+  showOnly(
+    "createCartScreen"
+  );
+
+  document
+    .getElementById(
+      "customerName"
+    )
+    .focus();
 
 }
 
@@ -1384,7 +1473,7 @@ async function addProductToCart(
   } else {
 
     showOnly(
-      "homeScreen"
+      "scannerScreen"
     );
 
     message(
@@ -1432,6 +1521,10 @@ async function addProductToCart(
       renderCartItems(
         data
       );
+
+    } else {
+
+      openPriceScanner();
 
     }
 
@@ -1597,9 +1690,7 @@ function cancelScannedProduct() {
 
   } else {
 
-    showOnly(
-      "homeScreen"
-    );
+    openPriceScanner();
 
   }
 
@@ -1607,6 +1698,9 @@ function cancelScannedProduct() {
 
 
 function cancelCartSelection() {
+
+  createCartFromScannedProduct =
+    false;
 
   if (scannedProduct) {
 

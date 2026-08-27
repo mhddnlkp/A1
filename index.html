@@ -1090,9 +1090,11 @@ function openPriceScanner() {
 
   setTimeout(
     function() {
-      startScanner();
+      if (!scannerStarting && !scanner) {
+        startScanner();
+      }
     },
-    120
+    250
   );
 
 }
@@ -1137,9 +1139,11 @@ function openInsideCartScanner() {
 
   setTimeout(
     function() {
-      startScanner();
+      if (!scannerStarting && !scanner) {
+        startScanner();
+      }
     },
-    120
+    250
   );
 
 }
@@ -1158,94 +1162,48 @@ async function startScanner() {
     "Opening camera..."
   );
 
-  const startButton =
-    document.getElementById(
-      "startScannerButton"
-    );
-
-  if (startButton) {
-    startButton.disabled =
-      true;
-  }
-
   try {
 
-    /*
-     * Fully release any previous camera session
-     * before requesting the camera again.
-     */
     await stopScannerQuietly();
 
+    /*
+     * Mobile browsers sometimes need time after stop()
+     * before getUserMedia can acquire the camera again.
+     */
     await new Promise(
       function(resolve) {
         setTimeout(
           resolve,
-          350
+          700
         );
       }
     );
+
+    const reader =
+      document.getElementById(
+        "reader"
+      );
+
+    if (reader) {
+      reader.innerHTML =
+        "";
+    }
 
     scanner =
       new Html5Qrcode(
         "reader"
       );
 
-    const cameras =
-      await Html5Qrcode
-        .getCameras();
-
-    if (
-      !cameras ||
-      !cameras.length
-    ) {
-
-      throw new Error(
-        "No camera found."
-      );
-
-    }
-
     /*
-     * Prefer the rear/environment camera.
-     * Fall back to the last available camera.
+     * Ask the browser for the environment camera directly.
+     * Avoid stale camera device IDs after repeated scans.
      */
-    let cameraId =
-      cameras[
-        cameras.length - 1
-      ].id;
-
-    const rearCamera =
-      cameras.find(
-        function(camera) {
-
-          const label =
-            String(
-              camera.label || ""
-            ).toLowerCase();
-
-          return (
-            label.includes(
-              "back"
-            ) ||
-            label.includes(
-              "rear"
-            ) ||
-            label.includes(
-              "environment"
-            )
-          );
-
-        }
-      );
-
-    if (rearCamera) {
-      cameraId =
-        rearCamera.id;
-    }
-
     await scanner.start(
 
-      cameraId,
+      {
+        facingMode:
+          "environment"
+      },
 
       {
         fps: 10,
@@ -1253,10 +1211,17 @@ async function startScanner() {
         qrbox: {
           width: 280,
           height: 120
-        }
+        },
+
+        aspectRatio:
+          1.777778
       },
 
-      onScanSuccess
+      onScanSuccess,
+
+      function() {
+        // Ignore normal frames where no barcode is detected.
+      }
 
     );
 
@@ -1267,6 +1232,11 @@ async function startScanner() {
     try {
 
       if (scanner) {
+
+        if (scanner.isScanning) {
+          await scanner.stop();
+        }
+
         await scanner.clear();
       }
 
@@ -1276,8 +1246,7 @@ async function startScanner() {
       null;
 
     message(
-      "Camera error: " +
-      error.message,
+      "Camera could not open. Close any other app using the camera, then tap SCAN PRODUCT again.",
       true
     );
 
@@ -1285,11 +1254,6 @@ async function startScanner() {
 
     scannerStarting =
       false;
-
-    if (startButton) {
-      startButton.disabled =
-        false;
-    }
 
   }
 
@@ -1990,17 +1954,6 @@ async function exitScanner() {
 async function stopScannerQuietly() {
 
   if (!scanner) {
-
-    const button =
-      document.getElementById(
-        "startScannerButton"
-      );
-
-    if (button) {
-      button.disabled =
-        false;
-    }
-
     return;
   }
 
@@ -2012,9 +1965,7 @@ async function stopScannerQuietly() {
 
   try {
 
-    if (
-      oldScanner.isScanning
-    ) {
+    if (oldScanner.isScanning) {
       await oldScanner.stop();
     }
 
@@ -2037,27 +1988,17 @@ async function stopScannerQuietly() {
   }
 
   /*
-   * Give mobile browsers a moment to
-   * physically release the camera.
+   * Let Android/iOS/browser fully release
+   * the MediaStream before another start.
    */
   await new Promise(
     function(resolve) {
       setTimeout(
         resolve,
-        180
+        350
       );
     }
   );
-
-  const button =
-    document.getElementById(
-      "startScannerButton"
-    );
-
-  if (button) {
-    button.disabled =
-      false;
-  }
 
 }
 

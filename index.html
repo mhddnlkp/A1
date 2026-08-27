@@ -1359,9 +1359,40 @@ async function addProductToCart(
     return;
   }
 
-  message(
-    "Adding product..."
-  );
+  const productToAdd =
+    scannedProduct;
+
+  const addedName =
+    productToAdd.productName ||
+    productToAdd.sku;
+
+  currentCartId =
+    cartId;
+
+  scannedProduct =
+    null;
+
+  if (
+    scannerMode ===
+    "CART"
+  ) {
+
+    showOptimisticCartAdd(
+      productToAdd
+    );
+
+  } else {
+
+    showOnly(
+      "homeScreen"
+    );
+
+    message(
+      addedName +
+      " is being added..."
+    );
+
+  }
 
   try {
 
@@ -1372,7 +1403,7 @@ async function addProductToCart(
         cartId:
           cartId,
         identifier:
-          scannedProduct.sku,
+          productToAdd.sku,
         quantity:
           1,
         staff:
@@ -1388,16 +1419,6 @@ async function addProductToCart(
 
     }
 
-    const addedName =
-      scannedProduct.productName ||
-      scannedProduct.sku;
-
-    scannedProduct =
-      null;
-
-    currentCartId =
-      cartId;
-
     message(
       addedName +
       " added to cart."
@@ -1408,14 +1429,8 @@ async function addProductToCart(
       "CART"
     ) {
 
-      await openCart(
-        cartId
-      );
-
-    } else {
-
-      showOnly(
-        "homeScreen"
+      renderCartItems(
+        data
       );
 
     }
@@ -1427,7 +1442,141 @@ async function addProductToCart(
       true
     );
 
+    if (
+      scannerMode ===
+      "CART"
+    ) {
+
+      await openCart(
+        cartId
+      );
+
+    }
+
   }
+
+}
+
+
+function showOptimisticCartAdd(
+  product
+) {
+
+  showOnly(
+    "cartScreen"
+  );
+
+  const box =
+    document.getElementById(
+      "cartItems"
+    );
+
+  if (!box) {
+    return;
+  }
+
+  if (
+    box.textContent
+      .trim() ===
+      "No products added yet."
+  ) {
+
+    box.innerHTML =
+      "";
+
+  }
+
+  const div =
+    document.createElement(
+      "div"
+    );
+
+  div.className =
+    "cart-item";
+
+  div.style.opacity =
+    "0.7";
+
+  const imageHtml =
+    product.imageData
+      ? "<img src='" +
+        product.imageData +
+        "' alt='Product Image'>"
+      : "<div class='cart-item-image-placeholder'></div>";
+
+  div.innerHTML =
+
+    imageHtml +
+
+    "<div>" +
+
+    "<strong>" +
+    esc(
+      product.productName ||
+      product.sku
+    ) +
+    "</strong>" +
+
+    "<div class='small'>" +
+
+    esc(
+      product.sku
+    ) +
+
+    " · Qty: 1" +
+
+    " · Added By: " +
+
+    esc(
+      loggedStaff
+    ) +
+
+    "</div>" +
+
+    "<div>₹" +
+    Number(
+      product.rp || 0
+    ) +
+    "</div>" +
+
+    "<div class='small'>Saving...</div>" +
+
+    "</div>";
+
+  box.appendChild(
+    div
+  );
+
+  const currentSubtotalText =
+    document
+      .getElementById(
+        "cartSubtotal"
+      )
+      .textContent || "";
+
+  const match =
+    currentSubtotalText
+      .match(/([\d.]+)$/);
+
+  const currentSubtotal =
+    match
+      ? Number(
+          match[1]
+        )
+      : 0;
+
+  document
+    .getElementById(
+      "cartSubtotal"
+    )
+    .textContent =
+      "Subtotal: ₹" +
+      (
+        currentSubtotal +
+        Number(
+          product.rp || 0
+        )
+      );
 
 }
 

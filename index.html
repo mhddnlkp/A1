@@ -404,6 +404,9 @@ let activeCartsCache = null;
 let activeCartsCacheTime = 0;
 const ACTIVE_CARTS_CACHE_MS = 2000;
 
+const productCache = {};
+const productImageCache = {};
+
 
 function showOnly(id) {
 
@@ -1237,40 +1240,73 @@ async function onScanSuccess(
 
   await stopScannerQuietly();
 
+  const identifier =
+    String(decodedText || "")
+      .trim();
+
+  const cacheKey =
+    identifier.toUpperCase();
+
   message(
     "Looking up product..."
   );
 
   try {
 
-    const data =
-      await api({
-        action:
-          "retailProduct",
-        identifier:
-          decodedText
-      });
+    let product =
+      productCache[cacheKey];
 
-    if (
-      !data.success ||
-      !data.found
-    ) {
+    if (!product) {
 
-      throw new Error(
-        data.message ||
-        "Product not found."
-      );
+      const data =
+        await api({
+          action:
+            "retailProduct",
+          identifier:
+            identifier,
+          fast:
+            "1"
+        });
+
+      if (
+        !data.success ||
+        !data.found
+      ) {
+
+        throw new Error(
+          data.message ||
+          "Product not found."
+        );
+
+      }
+
+      product =
+        data.product;
+
+      productCache[cacheKey] =
+        product;
+
+      if (product.sku) {
+        productCache[
+          String(product.sku)
+            .toUpperCase()
+        ] = product;
+      }
 
     }
 
     scannedProduct =
-      data.product;
+      product;
 
     showProduct(
-      scannedProduct
+      product
     );
 
     message("");
+
+    loadScannedImageFast(
+      product
+    );
 
   } catch (error) {
 
@@ -1288,6 +1324,131 @@ async function onScanSuccess(
 }
 
 
+async function loadScannedImageFast(
+  product
+) {
+
+  if (
+    !product ||
+    !product.sku
+  ) {
+    return;
+  }
+
+  const sku =
+    String(product.sku)
+      .trim();
+
+  const key =
+    sku.toUpperCase();
+
+  if (productImageCache[key]) {
+
+    setScannedProductImage(
+      productImageCache[key]
+    );
+
+    return;
+  }
+
+  try {
+
+    const data =
+      await api({
+        action:
+          "retailProductImage",
+        identifier:
+          sku
+      });
+
+    if (
+      !data.success ||
+      !data.imageData
+    ) {
+      setScannedImageUnavailable();
+      return;
+    }
+
+    productImageCache[key] =
+      data.imageData;
+
+    setScannedProductImage(
+      data.imageData
+    );
+
+  } catch (_) {
+
+    setScannedImageUnavailable();
+
+  }
+
+}
+
+
+function setScannedProductImage(
+  imageData
+) {
+
+  if (!scannedProduct) {
+    return;
+  }
+
+  const box =
+    document.getElementById(
+      "scannedProductImageBox"
+    );
+
+  if (!box) {
+    return;
+  }
+
+  box.innerHTML = "";
+
+  const img =
+    document.createElement(
+      "img"
+    );
+
+  img.src =
+    imageData;
+
+  img.alt =
+    "Product Image";
+
+  img.style.width =
+    "150px";
+
+  img.style.height =
+    "150px";
+
+  img.style.objectFit =
+    "cover";
+
+  img.style.borderRadius =
+    "10px";
+
+  box.appendChild(
+    img
+  );
+
+}
+
+
+function setScannedImageUnavailable() {
+
+  const box =
+    document.getElementById(
+      "scannedProductImageBox"
+    );
+
+  if (box) {
+    box.textContent =
+      "Image unavailable";
+  }
+
+}
+
+
 function showProduct(
   product
 ) {
@@ -1296,15 +1457,25 @@ function showProduct(
     "productScreen"
   );
 
-  let image =
-    "";
+  const imageKey =
+    String(product.sku || "")
+      .toUpperCase();
 
-  if (product.imageData) {
+  let image =
+    "<div id='scannedProductImageBox' " +
+    "style='width:150px;height:150px;margin:0 auto 10px;" +
+    "background:#eee;border-radius:10px;" +
+    "display:flex;align-items:center;justify-content:center;" +
+    "color:#777;font-size:13px;'>Loading image...</div>";
+
+  if (productImageCache[imageKey]) {
 
     image =
+      "<div id='scannedProductImageBox'>" +
       "<img src='" +
-      product.imageData +
-      "' alt='Product Image'>";
+      productImageCache[imageKey] +
+      "' alt='Product Image'>" +
+      "</div>";
 
   }
 

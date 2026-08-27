@@ -223,7 +223,7 @@
     <button
       class="primary"
       onclick="openPriceScanner()">
-      PRICE SCANNER
+      SCAN PRODUCT
     </button>
 
     <button
@@ -235,7 +235,7 @@
     <button
       class="light"
       onclick="showJoinCart()">
-      JOIN EXISTING CART
+      ACTIVE CARTS
     </button>
 
   </div>
@@ -304,7 +304,7 @@
 
   <button
     id="startScannerButton"
-    class="primary"
+    class="primary hidden"
     onclick="startScanner()">
     START SCANNER
   </button>
@@ -518,7 +518,9 @@ function loginStaff() {
 
   message("");
 
-  openPriceScanner();
+  showOnly(
+    "homeScreen"
+  );
 
 }
 

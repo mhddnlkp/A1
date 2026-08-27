@@ -1305,6 +1305,7 @@ async function onScanSuccess(
 
     if (
       !scannedProduct.imageData &&
+      !scannedProduct.imageReference &&
       scannedProduct.sku
     ) {
 
@@ -1406,6 +1407,17 @@ function showProduct(
       "<img id='scannedProductImage' src='" +
       product.imageData +
       "' alt='Product Image'>";
+
+  } else if (product.imageReference) {
+
+    image =
+      "<img id='scannedProductImage' src='" +
+      "https://drive.google.com/thumbnail?id=" +
+      encodeURIComponent(
+        product.imageReference
+      ) +
+      "&sz=w500' alt='Product Image' " +
+      "onerror=\"this.style.display='none'\">";
 
   }
 

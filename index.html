@@ -150,6 +150,25 @@
     .cart-item {
       border-bottom: 1px solid #eee;
       padding: 10px 0;
+      display: grid;
+      grid-template-columns: 64px 1fr;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .cart-item img {
+      width: 64px;
+      height: 64px;
+      object-fit: cover;
+      border-radius: 8px;
+      background: #eee;
+    }
+
+    .cart-item-image-placeholder {
+      width: 64px;
+      height: 64px;
+      border-radius: 8px;
+      background: #eee;
     }
 
     .subtotal {
@@ -855,7 +874,19 @@ function renderCartItems(
         div.className =
           "cart-item";
 
+        const imageId =
+          "cart-img-" +
+          Math.random()
+            .toString(36)
+            .slice(2);
+
         div.innerHTML =
+
+          "<div id='" +
+          imageId +
+          "' class='cart-item-image-placeholder'></div>" +
+
+          "<div>" +
 
           "<strong>" +
           esc(
@@ -886,10 +917,17 @@ function renderCartItems(
           Number(
             item.lineTotal || 0
           ) +
+          "</div>" +
+
           "</div>";
 
         box.appendChild(
           div
+        );
+
+        loadCartItemImage(
+          item.sku,
+          imageId
         );
 
       }
@@ -906,6 +944,50 @@ function renderCartItems(
       Number(
         data.cart.subtotal || 0
       );
+
+}
+
+
+
+async function loadCartItemImage(
+  sku,
+  targetId
+) {
+
+  try {
+
+    const data =
+      await api({
+        action:
+          "retailProductImage",
+        identifier:
+          sku
+      });
+
+    if (
+      !data.success ||
+      !data.imageData
+    ) {
+      return;
+    }
+
+    const target =
+      document.getElementById(
+        targetId
+      );
+
+    if (!target) {
+      return;
+    }
+
+    target.outerHTML =
+      "<img src='" +
+      data.imageData +
+      "' alt='Product Image'>";
+
+  } catch (_) {
+    // Keep placeholder if image cannot be loaded.
+  }
 
 }
 
@@ -1140,13 +1222,12 @@ function showProduct(
   let image =
     "";
 
-  if (product.imageReference) {
+  if (product.imageData) {
 
     image =
-      "<img src='https://lh3.googleusercontent.com/d/" +
-      encodeURIComponent(product.imageReference) +
-      "=w500' alt='Product Image' " +
-      "onerror=\"this.style.display='none'\">";
+      "<img src='" +
+      product.imageData +
+      "' alt='Product Image'>";
 
   }
 

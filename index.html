@@ -400,6 +400,11 @@ let scannedProduct = null;
 let returnScreen = "homeScreen";
 let createCartFromScannedProduct = false;
 
+const productCache = {};
+let activeCartsCache = null;
+let activeCartsCacheTime = 0;
+const ACTIVE_CARTS_CACHE_MS = 2500;
+
 
 function showOnly(id) {
 
@@ -626,6 +631,9 @@ async function createCart() {
       .value =
         "";
 
+    activeCartsCache =
+      null;
+
     currentCartId =
       data.cartId;
 
@@ -668,6 +676,46 @@ async function createCart() {
 }
 
 
+async function getActiveCartsFast() {
+
+  const now =
+    Date.now();
+
+  if (
+    activeCartsCache &&
+    now -
+      activeCartsCacheTime <
+      ACTIVE_CARTS_CACHE_MS
+  ) {
+
+    return {
+      success: true,
+      carts:
+        activeCartsCache
+    };
+
+  }
+
+  const data =
+    await api({
+      action:
+        "retailActiveCarts"
+    });
+
+  if (data.success) {
+
+    activeCartsCache =
+      data.carts || [];
+
+    activeCartsCacheTime =
+      Date.now();
+
+  }
+
+  return data;
+}
+
+
 async function showJoinCart() {
 
   showOnly(
@@ -684,10 +732,7 @@ async function showJoinCart() {
   try {
 
     const data =
-      await api({
-        action:
-          "retailActiveCarts"
-      });
+      await getActiveCartsFast();
 
     if (!data.success) {
 
@@ -1203,40 +1248,71 @@ async function onScanSuccess(
 
   await stopScannerQuietly();
 
+  const key =
+    String(decodedText || "")
+      .trim()
+      .toUpperCase();
+
   message(
     "Looking up product..."
   );
 
   try {
 
-    const data =
-      await api({
-        action:
-          "retailProduct",
-        identifier:
-          decodedText
-      });
+    let product =
+      productCache[key];
 
-    if (
-      !data.success ||
-      !data.found
-    ) {
+    if (!product) {
 
-      throw new Error(
-        data.message ||
-        "Product not found."
-      );
+      const data =
+        await api({
+          action:
+            "retailProduct",
+          identifier:
+            decodedText,
+          fast:
+            "1"
+        });
+
+      if (
+        !data.success ||
+        !data.found
+      ) {
+
+        throw new Error(
+          data.message ||
+          "Product not found."
+        );
+
+      }
+
+      product =
+        data.product;
+
+      productCache[key] =
+        product;
 
     }
 
     scannedProduct =
-      data.product;
+      product;
 
     showProduct(
       scannedProduct
     );
 
     message("");
+
+    if (
+      !scannedProduct.imageData &&
+      scannedProduct.sku
+    ) {
+
+      loadScannedProductImage(
+        scannedProduct.sku
+      );
+
+    }
 
   } catch (error) {
 
@@ -1254,6 +1330,63 @@ async function onScanSuccess(
 }
 
 
+async function loadScannedProductImage(
+  sku
+) {
+
+  try {
+
+    const data =
+      await api({
+        action:
+          "retailProductImage",
+        identifier:
+          sku
+      });
+
+    if (
+      !data.success ||
+      !data.imageData
+    ) {
+      return;
+    }
+
+    if (
+      scannedProduct &&
+      String(scannedProduct.sku)
+        .toUpperCase() ===
+      String(sku)
+        .toUpperCase()
+    ) {
+
+      scannedProduct.imageData =
+        data.imageData;
+
+      productCache[
+        String(sku)
+          .toUpperCase()
+      ] =
+        scannedProduct;
+
+      const productImage =
+        document.getElementById(
+          "scannedProductImage"
+        );
+
+      if (productImage) {
+        productImage.src =
+          data.imageData;
+        productImage.style.display =
+          "block";
+      }
+
+    }
+
+  } catch (_) {}
+
+}
+
+
 function showProduct(
   product
 ) {
@@ -1263,12 +1396,14 @@ function showProduct(
   );
 
   let image =
-    "";
+    "<img id='scannedProductImage' " +
+    "alt='Product Image' " +
+    "style='display:none'>";
 
   if (product.imageData) {
 
     image =
-      "<img src='" +
+      "<img id='scannedProductImage' src='" +
       product.imageData +
       "' alt='Product Image'>";
 
@@ -1360,10 +1495,7 @@ async function productAddDecision() {
   try {
 
     const data =
-      await api({
-        action:
-          "retailActiveCarts"
-      });
+      await getActiveCartsFast();
 
     if (!data.success) {
 
@@ -1509,6 +1641,9 @@ async function addProductToCart(
       );
 
     }
+
+    activeCartsCache =
+      null;
 
     message(
       addedName +

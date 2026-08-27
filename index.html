@@ -394,6 +394,7 @@ const backendUrl =
 
 let loggedStaff = "";
 let scanner = null;
+let scannerStarting = false;
 let scannerMode = "PRICE";
 let currentCartId = "";
 let scannedProduct = null;
@@ -1146,26 +1147,43 @@ function openInsideCartScanner() {
 
 async function startScanner() {
 
+  if (scannerStarting) {
+    return;
+  }
+
+  scannerStarting =
+    true;
+
   message(
     "Opening camera..."
   );
 
-  document
-    .getElementById(
+  const startButton =
+    document.getElementById(
       "startScannerButton"
-    )
-    .disabled =
+    );
+
+  if (startButton) {
+    startButton.disabled =
       true;
+  }
 
   try {
 
-    if (scanner) {
+    /*
+     * Fully release any previous camera session
+     * before requesting the camera again.
+     */
+    await stopScannerQuietly();
 
-      try {
-        await scanner.clear();
-      } catch (_) {}
-
-    }
+    await new Promise(
+      function(resolve) {
+        setTimeout(
+          resolve,
+          350
+        );
+      }
+    );
 
     scanner =
       new Html5Qrcode(
@@ -1187,24 +1205,54 @@ async function startScanner() {
 
     }
 
-    const cameraId =
+    /*
+     * Prefer the rear/environment camera.
+     * Fall back to the last available camera.
+     */
+    let cameraId =
       cameras[
         cameras.length - 1
       ].id;
+
+    const rearCamera =
+      cameras.find(
+        function(camera) {
+
+          const label =
+            String(
+              camera.label || ""
+            ).toLowerCase();
+
+          return (
+            label.includes(
+              "back"
+            ) ||
+            label.includes(
+              "rear"
+            ) ||
+            label.includes(
+              "environment"
+            )
+          );
+
+        }
+      );
+
+    if (rearCamera) {
+      cameraId =
+        rearCamera.id;
+    }
 
     await scanner.start(
 
       cameraId,
 
       {
-        fps:
-          10,
+        fps: 10,
 
         qrbox: {
-          width:
-            280,
-          height:
-            120
+          width: 280,
+          height: 120
         }
       },
 
@@ -1216,18 +1264,32 @@ async function startScanner() {
 
   } catch (error) {
 
-    document
-      .getElementById(
-        "startScannerButton"
-      )
-      .disabled =
-        false;
+    try {
+
+      if (scanner) {
+        await scanner.clear();
+      }
+
+    } catch (_) {}
+
+    scanner =
+      null;
 
     message(
       "Camera error: " +
       error.message,
       true
     );
+
+  } finally {
+
+    scannerStarting =
+      false;
+
+    if (startButton) {
+      startButton.disabled =
+        false;
+    }
 
   }
 
@@ -1929,51 +1991,73 @@ async function stopScannerQuietly() {
 
   if (!scanner) {
 
-    document
-      .getElementById(
+    const button =
+      document.getElementById(
         "startScannerButton"
-      )
-      .disabled =
+      );
+
+    if (button) {
+      button.disabled =
         false;
+    }
 
     return;
-
   }
+
+  const oldScanner =
+    scanner;
+
+  scanner =
+    null;
 
   try {
 
     if (
-      scanner.isScanning
+      oldScanner.isScanning
     ) {
-
-      await scanner.stop();
-
+      await oldScanner.stop();
     }
 
   } catch (_) {}
 
   try {
 
-    await scanner.clear();
+    await oldScanner.clear();
 
   } catch (_) {}
 
-  scanner =
-    null;
-
-  document
-    .getElementById(
+  const reader =
+    document.getElementById(
       "reader"
-    )
-    .innerHTML =
-      "";
+    );
 
-  document
-    .getElementById(
+  if (reader) {
+    reader.innerHTML =
+      "";
+  }
+
+  /*
+   * Give mobile browsers a moment to
+   * physically release the camera.
+   */
+  await new Promise(
+    function(resolve) {
+      setTimeout(
+        resolve,
+        180
+      );
+    }
+  );
+
+  const button =
+    document.getElementById(
       "startScannerButton"
-    )
-    .disabled =
+    );
+
+  if (button) {
+    button.disabled =
       false;
+  }
 
 }
 

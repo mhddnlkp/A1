@@ -400,10 +400,9 @@ let scannedProduct = null;
 let returnScreen = "homeScreen";
 let createCartFromScannedProduct = false;
 
-const productCache = {};
 let activeCartsCache = null;
 let activeCartsCacheTime = 0;
-const ACTIVE_CARTS_CACHE_MS = 2500;
+const ACTIVE_CARTS_CACHE_MS = 2000;
 
 
 function showOnly(id) {
@@ -631,8 +630,7 @@ async function createCart() {
       .value =
         "";
 
-    activeCartsCache =
-      null;
+    activeCartsCache = null;
 
     currentCartId =
       data.cartId;
@@ -678,38 +676,29 @@ async function createCart() {
 
 async function getActiveCartsFast() {
 
-  const now =
-    Date.now();
+  const now = Date.now();
 
   if (
     activeCartsCache &&
-    now -
-      activeCartsCacheTime <
+    now - activeCartsCacheTime <
       ACTIVE_CARTS_CACHE_MS
   ) {
-
     return {
       success: true,
-      carts:
-        activeCartsCache
+      carts: activeCartsCache
     };
-
   }
 
   const data =
     await api({
-      action:
-        "retailActiveCarts"
+      action: "retailActiveCarts"
     });
 
   if (data.success) {
-
     activeCartsCache =
       data.carts || [];
-
     activeCartsCacheTime =
       Date.now();
-
   }
 
   return data;
@@ -1248,71 +1237,40 @@ async function onScanSuccess(
 
   await stopScannerQuietly();
 
-  const key =
-    String(decodedText || "")
-      .trim()
-      .toUpperCase();
-
   message(
     "Looking up product..."
   );
 
   try {
 
-    let product =
-      productCache[key];
+    const data =
+      await api({
+        action:
+          "retailProduct",
+        identifier:
+          decodedText
+      });
 
-    if (!product) {
+    if (
+      !data.success ||
+      !data.found
+    ) {
 
-      const data =
-        await api({
-          action:
-            "retailProduct",
-          identifier:
-            decodedText,
-          fast:
-            "1"
-        });
-
-      if (
-        !data.success ||
-        !data.found
-      ) {
-
-        throw new Error(
-          data.message ||
-          "Product not found."
-        );
-
-      }
-
-      product =
-        data.product;
-
-      productCache[key] =
-        product;
+      throw new Error(
+        data.message ||
+        "Product not found."
+      );
 
     }
 
     scannedProduct =
-      product;
+      data.product;
 
     showProduct(
       scannedProduct
     );
 
     message("");
-
-    if (
-      !scannedProduct.imageData &&
-      scannedProduct.sku
-    ) {
-
-      loadScannedProductImage(
-        scannedProduct.sku
-      );
-
-    }
 
   } catch (error) {
 
@@ -1330,107 +1288,6 @@ async function onScanSuccess(
 }
 
 
-async function loadScannedProductImage(
-  sku
-) {
-
-  try {
-
-    const data =
-      await api({
-        action:
-          "retailProductImage",
-        identifier:
-          sku
-      });
-
-    if (
-      !data.success ||
-      !data.imageData
-    ) {
-      return;
-    }
-
-    if (
-      scannedProduct &&
-      String(scannedProduct.sku)
-        .toUpperCase() ===
-      String(sku)
-        .toUpperCase()
-    ) {
-
-      scannedProduct.imageData =
-        data.imageData;
-
-      productCache[
-        String(sku)
-          .toUpperCase()
-      ] =
-        scannedProduct;
-
-      const productImage =
-        document.getElementById(
-          "scannedProductImage"
-        );
-
-      if (productImage) {
-
-        productImage.src =
-          data.imageData;
-
-        productImage.style.display =
-          "block";
-
-      } else {
-
-        const imageBox =
-          document.getElementById(
-            "scannedProductImageBox"
-          );
-
-        if (imageBox) {
-
-          const img =
-            document.createElement(
-              "img"
-            );
-
-          img.id =
-            "scannedProductImage";
-
-          img.src =
-            data.imageData;
-
-          img.alt =
-            "Product Image";
-
-          img.style.width =
-            "150px";
-
-          img.style.height =
-            "150px";
-
-          img.style.objectFit =
-            "cover";
-
-          img.style.borderRadius =
-            "10px";
-
-          imageBox.replaceWith(
-            img
-          );
-
-        }
-
-      }
-
-    }
-
-  } catch (_) {}
-
-}
-
-
 function showProduct(
   product
 ) {
@@ -1440,16 +1297,12 @@ function showProduct(
   );
 
   let image =
-    "<div id='scannedProductImageBox' " +
-    "style='width:150px;height:150px;margin:0 auto 10px;" +
-    "background:#eee;border-radius:10px;" +
-    "display:flex;align-items:center;justify-content:center;" +
-    "color:#777;font-size:13px;'>Loading image...</div>";
+    "";
 
   if (product.imageData) {
 
     image =
-      "<img id='scannedProductImage' src='" +
+      "<img src='" +
       product.imageData +
       "' alt='Product Image'>";
 
@@ -1688,8 +1541,7 @@ async function addProductToCart(
 
     }
 
-    activeCartsCache =
-      null;
+    activeCartsCache = null;
 
     message(
       addedName +
